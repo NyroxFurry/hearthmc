@@ -1,0 +1,5 @@
+# Gebaute Oberfläche und erzeugte Dateien: auf GitHub eingeklappt und nicht in
+# der Sprachstatistik.
+internal/web/dist/** linguist-generated=true
+THIRD_PARTY_LICENSES.txt linguist-generated=true
+web/package-lock.json linguist-generated=true
