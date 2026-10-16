@@ -489,6 +489,7 @@ func (a *API) deleteServer(w http.ResponseWriter, r *http.Request, u *store.User
 	if err := a.Servers.Delete(r.Context(), srv.ID); err != nil {
 		return err
 	}
+	os.RemoveAll(a.modpackDir(srv.ID))
 	a.audit(r, srv.ID, "server.delete", map[string]any{"name": srv.Name})
 	ok(w, nil)
 	return nil

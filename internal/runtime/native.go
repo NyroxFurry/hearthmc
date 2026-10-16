@@ -88,6 +88,7 @@ type nativeProc struct {
 }
 
 func (p *nativeProc) ID() string        { return strconv.Itoa(p.cmd.Process.Pid) }
+func (p *nativeProc) HostPID() int      { return p.cmd.Process.Pid }
 func (p *nativeProc) Output() io.Reader { return p.out }
 
 func (p *nativeProc) Write(b []byte) (int, error) {

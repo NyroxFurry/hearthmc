@@ -8,7 +8,7 @@
   import { servers, session, can } from '../lib/session.svelte';
   import { live } from '../lib/live.svelte';
   import { api } from '../lib/api';
-  import { bytes, num1, duration } from '../lib/format';
+  import { bytes, num1, duration, memUsage } from '../lib/format';
   import { toastError } from '../lib/toast.svelte';
   import { flavorLabel } from '../lib/mc';
   import type { Server } from '../lib/types';
@@ -84,6 +84,7 @@
       {#each servers.list as s (s.id)}
         {@const status = st(s)}
         {@const on = status.state === 'running'}
+        {@const memory = memUsage(status, s.memoryMb)}
         <li class="srow">
           <a class="ident" href="/servers/{s.id}">
             <ServerIcon id={s.id} name={s.name} color={s.color} size={48} hasIcon={s.hasIcon} version={s.updatedAt} />
@@ -109,11 +110,11 @@
               <Sparkline values={cpu[s.id] ?? []} width={84} height={24} />
               <span class="tiny num">{on ? num1(status.cpu) + ' %' : '–'}</span>
             </div>
-            <div class="mem">
-              <div class="meter" class:warn={status.memLimit > 0 && status.mem / status.memLimit > 0.85}>
-                <span style="width:{status.memLimit ? Math.min(100, (status.mem / status.memLimit) * 100) : 0}%"></span>
+            <div class="mem" title={memory.heap ? 'Genutzter Java-Heap' : 'Arbeitsspeicher des Prozesses'}>
+              <div class="meter" class:warn={memory.total > 0 && memory.used / memory.total > 0.85}>
+                <span style="width:{on && memory.total ? Math.min(100, (memory.used / memory.total) * 100) : 0}%"></span>
               </div>
-              <span class="tiny faint num">{on ? bytes(status.mem) : bytes(0)} / {bytes(status.memLimit || s.memoryMb * 1048576, 0)}</span>
+              <span class="tiny faint num">{on ? bytes(memory.used) : bytes(0)} / {bytes(memory.total, 0)}</span>
             </div>
           </div>
           <div class="cell actions">

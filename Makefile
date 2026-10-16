@@ -6,7 +6,7 @@
 #   make licenses   THIRD_PARTY_LICENSES.txt aus den Abhängigkeiten neu erzeugen
 #   make dev        Panel auf :18080 starten, Oberfläche mit Hot-Reload auf :5173
 
-VERSION ?= 1.1.1
+VERSION ?= 1.2.0
 COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 DATE    ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS := -s -w \

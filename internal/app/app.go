@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -34,6 +35,7 @@ import (
 	"hearth/internal/sched"
 	"hearth/internal/servers"
 	"hearth/internal/settings"
+	"hearth/internal/sftpd"
 	"hearth/internal/store"
 	"hearth/internal/version"
 	"hearth/internal/web"
@@ -173,6 +175,7 @@ func (a *App) Run(ctx context.Context) error {
 			}
 		}(s)
 	}
+	sftpSrv := a.startSFTP()
 	a.Log.Info("Hearth gestartet", "version", version.Version, "url", strings.Join(urls, ", "))
 	if code != "" {
 		banner := strings.Repeat("═", 60)
@@ -185,6 +188,9 @@ func (a *App) Run(ctx context.Context) error {
 		a.Log.Error("http server failed", "err", err)
 	}
 	a.Log.Info("Hearth wird beendet …")
+	if sftpSrv != nil {
+		sftpSrv.Close()
+	}
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	for _, s := range srvs {
 		s.Shutdown(shutdownCtx)
@@ -195,6 +201,36 @@ func (a *App) Run(ctx context.Context) error {
 	wg.Wait()
 	a.DB.Close()
 	return err
+}
+
+// startSFTP starts the built-in SFTP server. Like the map port it is
+// optional: when the port is taken, the panel runs on and shows the error.
+func (a *App) startSFTP() *sftpd.Server {
+	addr := a.Cfg.SFTPAddr()
+	if addr == "" {
+		a.API.SetSFTP(false, 0, "", nil)
+		return nil
+	}
+	port := 0
+	if _, p, err := net.SplitHostPort(addr); err == nil {
+		port, _ = strconv.Atoi(p)
+	}
+	signer, err := sftpd.LoadHostKey(a.Cfg.SFTPHostKeyPath())
+	if err != nil {
+		a.Log.Warn("SFTP-Hostschlüssel nicht verfügbar", "err", err)
+		a.API.SetSFTP(true, port, "", err)
+		return nil
+	}
+	s := &sftpd.Server{Addr: addr, Signer: signer, Auth: a.API.SFTPAuth(), Log: a.Log}
+	if err := s.Listen(); err != nil {
+		a.Log.Warn("SFTP nicht verfügbar", "addr", addr, "err", err)
+		a.API.SetSFTP(true, port, sftpd.Fingerprint(signer), err)
+		return nil
+	}
+	a.API.SetSFTP(true, port, sftpd.Fingerprint(signer), nil)
+	a.Log.Info("SFTP bereit", "addr", addr, "fingerprint", sftpd.Fingerprint(signer))
+	go s.Serve()
+	return s
 }
 
 type httpServer struct {

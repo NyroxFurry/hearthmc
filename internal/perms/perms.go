@@ -16,6 +16,7 @@ const (
 	FilesRead      = "files.read"
 	FilesWrite     = "files.write"
 	FilesDelete    = "files.delete"
+	FilesSFTP      = "files.sftp" // SFTP login; read/write/delete follow the files.* permissions
 	BackupsRead    = "backups.read"
 	BackupsCreate  = "backups.create"
 	BackupsRestore = "backups.restore"
@@ -51,6 +52,7 @@ var All = []Info{
 	{FilesRead, "Dateien", "Dateien ansehen", "Dateien durchsuchen, lesen und herunterladen"},
 	{FilesWrite, "Dateien", "Dateien bearbeiten", "Dateien hochladen, bearbeiten, umbenennen, entpacken"},
 	{FilesDelete, "Dateien", "Dateien löschen", "Dateien und Ordner löschen"},
+	{FilesSFTP, "Dateien", "SFTP-Zugang", "Mit einem SFTP-Programm wie FileZilla oder WinSCP auf die Dateien zugreifen (im Rahmen der Dateirechte)"},
 	{BackupsRead, "Backups", "Backups ansehen", "Backups auflisten und herunterladen"},
 	{BackupsCreate, "Backups", "Backups erstellen", "Neue Backups anlegen"},
 	{BackupsRestore, "Backups", "Backups wiederherstellen", "Server aus einem Backup zurücksetzen"},

@@ -40,6 +40,9 @@ export interface Status {
   lastCrashAt: number;
   crashLoop?: boolean;
   pid?: string;
+  /** Java-Server: genutzter Heap und Heap-Größe in Bytes */
+  heap?: number;
+  heapSize?: number;
 }
 
 export interface PortSpec {

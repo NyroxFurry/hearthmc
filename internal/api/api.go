@@ -57,6 +57,8 @@ type API struct {
 	touchMu   sync.Mutex
 	touched   map[string]time.Time
 	started   time.Time
+	sftp      SFTPInfo
+	packMu    sync.Mutex // one modpack build at a time
 }
 
 type ctxKey int

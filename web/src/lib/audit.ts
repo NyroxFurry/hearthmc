@@ -9,6 +9,8 @@ const labels: Record<string, string> = {
   'account.2fa_disabled': 'Zwei-Faktor-Anmeldung ausgeschaltet',
   'account.password': 'Passwort geändert',
   'account.apikey_created': 'API-Schlüssel erstellt',
+  'account.sshkey_added': 'SSH-Schlüssel hinzugefügt',
+  'account.sshkey_removed': 'SSH-Schlüssel entfernt',
   'panel.setup': 'Panel eingerichtet',
   'user.register': 'Konto über Einladung angelegt',
   'server.create': 'Server angelegt',
@@ -26,6 +28,9 @@ const labels: Record<string, string> = {
   'files.delete': 'Gelöscht',
   'files.compress': 'Archiv erstellt',
   'files.extract': 'Archiv entpackt',
+  'files.sftp_login': 'Per SFTP angemeldet',
+  'files.sftp_login_failed': 'SFTP-Anmeldung fehlgeschlagen',
+  'files.sftp_session': 'Dateien per SFTP geändert',
   'backup.create': 'Backup erstellt',
   'backup.restore': 'Backup wiederhergestellt',
   'backup.delete': 'Backup gelöscht',
@@ -49,6 +54,7 @@ const labels: Record<string, string> = {
   'mc.plugin_install': 'Erweiterung installiert',
   'mc.plugin_toggle': 'Erweiterung umgeschaltet',
   'mc.plugin_delete': 'Erweiterung gelöscht',
+  'mc.modpack_build': 'Modpack erstellt',
   'map.render': 'Karte gerendert',
   'map.settings': 'Karteneinstellungen geändert',
   'map.plugin': 'Karten-Plugin geändert',
@@ -106,6 +112,23 @@ export function auditDetail(e: AuditEntry): string {
       return (d.files ?? []).slice(0, 5).join(', ') + ((d.files?.length ?? 0) > 5 ? ` und ${d.files.length - 5} weitere` : '');
     case 'files.extract':
       return d.path ?? '';
+    case 'files.sftp_login':
+      return d.method === 'publickey' ? 'mit SSH-Schlüssel' : 'mit Passwort';
+    case 'files.sftp_login_failed':
+      return d.reason === '2fa' ? 'Passwort-Anmeldung ist bei aktiver Zwei-Faktor-Anmeldung gesperrt' : d.reason === 'perm' ? 'kein SFTP-Recht für diesen Server' : 'falsches Passwort';
+    case 'files.sftp_session': {
+      const parts = [
+        d.uploaded ? `${d.uploaded} hochgeladen` : '',
+        d.created ? `${d.created} angelegt` : '',
+        d.renamed ? `${d.renamed} umbenannt` : '',
+        d.deleted ? `${d.deleted} gelöscht` : '',
+      ].filter(Boolean);
+      return parts.join(', ');
+    }
+    case 'account.sshkey_added':
+      return d.name ?? '';
+    case 'mc.modpack_build':
+      return `Version ${d.version}, ${d.mods} Mods${d.clientMods ? ` und ${d.clientMods} Client-Mods` : ''}`;
     case 'server.update':
       return (d.fields ?? []).join(', ');
     case 'mc.properties':

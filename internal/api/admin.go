@@ -371,6 +371,10 @@ func (a *API) adminUpdateSettings(w http.ResponseWriter, r *http.Request, u *sto
 			if v != "0" && v != "1" {
 				err = fmt.Errorf("Wert muss 0 oder 1 sein")
 			}
+		case settings.SFTPHost:
+			if v != "" && (len(v) > 255 || strings.ContainsAny(v, " /\\@") || strings.Contains(v, "://")) {
+				err = fmt.Errorf("Bitte nur einen Hostnamen, optional mit Port (z. B. sftp.example.de:2022)")
+			}
 		case settings.DockerHost:
 			if v != "" && !strings.HasPrefix(v, "unix://") && !strings.HasPrefix(v, "tcp://") {
 				err = fmt.Errorf("Docker-Host muss mit unix:// oder tcp:// beginnen")

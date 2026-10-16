@@ -19,3 +19,12 @@ func TestMapAddr(t *testing.T) {
 		}
 	}
 }
+
+func TestSFTPAddr(t *testing.T) {
+	for in, want := range map[string]string{"": ":2022", "off": "", "OFF": "", "2222": ":2222", "127.0.0.1:2200": "127.0.0.1:2200", "[::]:2022": "[::]:2022"} {
+		c := Config{SFTPListen: in}
+		if got := c.SFTPAddr(); got != want {
+			t.Errorf("%q: got %q, want %q", in, got, want)
+		}
+	}
+}

@@ -31,6 +31,9 @@ func (a *API) Handler() http.Handler {
 	mux.Handle("GET /api/account/keys", a.authed(a.listKeys))
 	mux.Handle("POST /api/account/keys", a.authed(a.createKey))
 	mux.Handle("DELETE /api/account/keys/{kid}", a.authed(a.deleteKey))
+	mux.Handle("GET /api/account/ssh-keys", a.authed(a.listSSHKeys))
+	mux.Handle("POST /api/account/ssh-keys", a.authed(a.addSSHKey))
+	mux.Handle("DELETE /api/account/ssh-keys/{kid}", a.authed(a.deleteSSHKey))
 
 	// meta
 	mux.Handle("GET /api/meta", a.authed(a.meta))
@@ -95,6 +98,7 @@ func (a *API) Handler() http.Handler {
 	mux.Handle("GET /api/servers/{id}/files/download", a.srv(perms.FilesRead, a.downloadFiles))
 	mux.Handle("POST /api/servers/{id}/files/upload", a.srv(perms.FilesWrite, a.uploadFiles))
 	mux.Handle("POST /api/servers/{id}/files/{op}", a.srv("", a.fileOp))
+	mux.Handle("GET /api/servers/{id}/sftp", a.srv(perms.FilesSFTP, a.serverSFTP))
 
 	// backups
 	mux.Handle("GET /api/servers/{id}/backups", a.srv(perms.BackupsRead, a.listBackups))
@@ -134,6 +138,11 @@ func (a *API) Handler() http.Handler {
 	mux.Handle("GET /api/servers/{id}/mc/modrinth/search", a.mc(perms.PluginsManage, a.mcModrinthSearch))
 	mux.Handle("GET /api/servers/{id}/mc/modrinth/versions", a.mc(perms.PluginsManage, a.mcModrinthVersions))
 	mux.Handle("POST /api/servers/{id}/mc/modrinth/install", a.mc(perms.PluginsManage, a.mcModrinthInstall))
+	mux.Handle("GET /api/servers/{id}/mc/modpack", a.mc(perms.PluginsManage, a.mcModpack))
+	mux.Handle("PUT /api/servers/{id}/mc/modpack", a.mc(perms.PluginsManage, a.mcModpackSave))
+	mux.Handle("GET /api/servers/{id}/mc/modpack/client-mods", a.mc(perms.PluginsManage, a.mcModpackSearch))
+	mux.Handle("POST /api/servers/{id}/mc/modpack/build", a.mc(perms.PluginsManage, a.mcModpackBuild))
+	mux.Handle("GET /api/servers/{id}/mc/modpack/download", a.mc(perms.PluginsManage, a.mcModpackDownload))
 	mux.Handle("GET /api/servers/{id}/mc/map", a.mc("", a.mcMap))
 	mux.Handle("POST /api/servers/{id}/mc/map/render", a.mc(perms.MapManage, a.mcMapRender))
 	mux.Handle("PUT /api/servers/{id}/mc/map/settings", a.mc(perms.MapManage, a.mcMapSettings))
@@ -152,6 +161,7 @@ func (a *API) Handler() http.Handler {
 	mux.Handle("GET /api/public/{slug}/map/tiles/{dim}/{z}/{x}/{y}", a.public(a.publicTile))
 	mux.Handle("GET /api/public/{slug}/icon.png", a.public(a.publicIcon))
 	mux.Handle("GET /api/public/{slug}/badge.svg", a.public(a.publicBadge))
+	mux.Handle("GET /api/public/{slug}/modpack.mrpack", a.public(a.publicModpack))
 	mux.HandleFunc("GET /api/heads/{uuid}", a.head)
 
 	// public status pages (server side Open Graph tags)

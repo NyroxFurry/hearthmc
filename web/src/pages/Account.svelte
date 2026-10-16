@@ -2,7 +2,7 @@
   import PageBand from '../components/PageBand.svelte';
   import { onMount } from 'svelte';
   import { renderSVG } from 'uqr';
-  import { ShieldCheck, ShieldOff, KeyRound, Monitor, Smartphone, LogOut, Plus, Trash2, Download, Sun, Moon } from '@lucide/svelte';
+  import { ShieldCheck, ShieldOff, KeyRound, KeySquare, Monitor, Smartphone, LogOut, Plus, Trash2, Download, Sun, Moon } from '@lucide/svelte';
   import Modal from '../components/Modal.svelte';
   import CopyButton from '../components/CopyButton.svelte';
   import { api } from '../lib/api';
@@ -194,9 +194,55 @@
     }
   }
 
+  // ---- ssh keys (SFTP) ----
+  interface SSHKey {
+    id: number;
+    name: string;
+    fingerprint: string;
+    createdAt: number;
+    lastUsedAt: number;
+  }
+  let sshKeys = $state<SSHKey[]>([]);
+  let sshOpen = $state(false);
+  let sshName = $state('');
+  let sshKey = $state('');
+  let sshBusy = $state(false);
+
+  async function loadSSHKeys() {
+    try {
+      sshKeys = await api.get<SSHKey[]>('/api/account/ssh-keys');
+    } catch {}
+  }
+
+  async function addSSHKey(e: Event) {
+    e.preventDefault();
+    sshBusy = true;
+    try {
+      await api.post('/api/account/ssh-keys', { name: sshName, publicKey: sshKey });
+      sshOpen = false;
+      toastOk('SSH-Schlüssel hinzugefügt');
+      loadSSHKeys();
+    } catch (err) {
+      toastError(err);
+    } finally {
+      sshBusy = false;
+    }
+  }
+
+  async function deleteSSHKey(k: SSHKey) {
+    if (!(await confirmDialog({ title: `SSH-Schlüssel „${k.name}“ entfernen?`, text: 'SFTP-Programme mit diesem Schlüssel können sich danach nicht mehr anmelden.', confirm: 'Entfernen', danger: true }))) return;
+    try {
+      await api.del(`/api/account/ssh-keys/${k.id}`);
+      loadSSHKeys();
+    } catch (e) {
+      toastError(e);
+    }
+  }
+
   onMount(() => {
     loadSessions();
     loadKeys();
+    loadSSHKeys();
   });
 </script>
 
@@ -334,6 +380,40 @@
         <p class="panel-body small muted">Mit einem API-Schlüssel steuern Skripte oder Bots das Panel mit deinen Rechten, etwa per <code>Authorization: Bearer hth_…</code>.</p>
       {/if}
     </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h3>SSH-Schlüssel für SFTP</h3>
+        <span class="spacer"></span>
+        <button
+          class="btn sm"
+          onclick={() => {
+            sshName = '';
+            sshKey = '';
+            sshOpen = true;
+          }}><Plus /> Schlüssel hinzufügen</button
+        >
+      </div>
+      {#if sshKeys.length}
+        <ul class="list sess">
+          {#each sshKeys as k (k.id)}
+            <li>
+              <span class="dev"><KeySquare /></span>
+              <div class="grow">
+                <strong>{k.name}</strong>
+                <div class="small muted"><code class="small">{k.fingerprint}</code></div>
+                <div class="small muted">Hinzugefügt {date(k.createdAt)}, {k.lastUsedAt ? `zuletzt benutzt ${ago(k.lastUsedAt)}` : 'noch nie benutzt'}</div>
+              </div>
+              <button class="btn ghost sm icon" onclick={() => deleteSSHKey(k)} aria-label="SSH-Schlüssel entfernen" title="Entfernen"><Trash2 /></button>
+            </li>
+          {/each}
+        </ul>
+      {:else}
+        <p class="panel-body small muted">
+          Mit einem SSH-Schlüssel meldest du dich bei SFTP ohne Passwort an.{user.totpEnabled ? ' Weil deine Zwei-Faktor-Anmeldung aktiv ist, geht SFTP nur mit Schlüssel.' : ''}
+        </p>
+      {/if}
+    </section>
   </div>
 </div>
 
@@ -407,7 +487,30 @@
   {/snippet}
 </Modal>
 
+<Modal bind:open={sshOpen} title="SSH-Schlüssel hinzufügen" size="m">
+  <form id="ssh-form" class="stack" onsubmit={addSSHKey}>
+    <div class="field">
+      <label for="sk">Öffentlicher Schlüssel</label>
+      <textarea id="sk" class="input mono sshkey" bind:value={sshKey} rows="4" placeholder="ssh-ed25519 AAAA… name@rechner" spellcheck="false" required></textarea>
+      <p class="hint">Der Inhalt der Datei mit der Endung .pub, etwa <code>~/.ssh/id_ed25519.pub</code>. Einen neuen Schlüssel erzeugt <code>ssh-keygen -t ed25519</code>. Den privaten Schlüssel nie hier einfügen.</p>
+    </div>
+    <div class="field">
+      <label for="skn">Name</label>
+      <input id="skn" class="input" bind:value={sshName} maxlength="60" placeholder="z. B. Laptop (sonst aus dem Schlüssel)" />
+    </div>
+  </form>
+  {#snippet footer()}
+    <button class="btn" onclick={() => (sshOpen = false)}>Abbrechen</button>
+    <button class="btn primary" type="submit" form="ssh-form" disabled={sshBusy || !sshKey.trim()}>Hinzufügen</button>
+  {/snippet}
+</Modal>
+
 <style>
+  .sshkey {
+    font-size: 12.5px;
+    resize: vertical;
+    min-height: 92px;
+  }
   .wide {
     gap: 18px;
   }

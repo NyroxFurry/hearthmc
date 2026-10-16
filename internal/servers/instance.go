@@ -16,6 +16,7 @@ import (
 
 	"hearth/internal/events"
 	"hearth/internal/game"
+	"hearth/internal/jvm"
 	"hearth/internal/runtime"
 	"hearth/internal/store"
 )
@@ -57,6 +58,10 @@ type Instance struct {
 	rtName       string
 	handler      game.Handler
 	usage        runtime.Usage
+	heap         jvm.Heap  // Java heap of the server process (zero = unknown)
+	heapAt       time.Time // last heap query
+	heapMisses   int
+	javaPID      int
 	startedAt    time.Time
 	stopping     bool
 	restartAfter bool
@@ -195,6 +200,11 @@ type Status struct {
 	LastCrashAt  int64   `json:"lastCrashAt"`
 	CrashLoop    bool    `json:"crashLoop,omitempty"`
 	PID          string  `json:"pid,omitempty"`
+
+	// Java servers: heap in use and heap size. Java reserves the whole heap at
+	// start, so Mem stays near the limit while Heap shows the real usage.
+	Heap     uint64 `json:"heap,omitempty"`
+	HeapSize uint64 `json:"heapSize,omitempty"`
 }
 
 func (i *Instance) Status() Status {
@@ -209,6 +219,9 @@ func (i *Instance) Status() Status {
 	}
 	if i.run != nil {
 		st.PID = i.run.proc.ID()
+	}
+	if i.heap.Committed > 0 && time.Since(i.heapAt) < 2*time.Minute {
+		st.Heap, st.HeapSize = i.heap.Used, max(i.heap.Committed, i.heap.Max)
 	}
 	if st.MemLimit == 0 && i.srv.MemoryMB > 0 {
 		st.MemLimit = uint64(i.srv.MemoryMB) << 20
@@ -289,6 +302,7 @@ func (i *Instance) Start(actor string) error {
 	i.crashLoop = false
 	i.startedAt = time.Now()
 	i.usage = runtime.Usage{}
+	i.resetHeap()
 	i.mu.Unlock()
 	i.publishStatus()
 	go i.doStart(actor)
@@ -478,6 +492,7 @@ func (i *Instance) watch(run *procRun, pumpDone chan struct{}) {
 	i.lastExitCode = code
 	i.state = StateOffline
 	i.usage = runtime.Usage{}
+	i.resetHeap()
 	autoRestart := i.srv.AutoRestart
 	var loop bool
 	if crashed {
@@ -736,6 +751,52 @@ func (i *Instance) sampleUsage() {
 	i.mu.Lock()
 	i.usage = u
 	i.mu.Unlock()
+	i.sampleHeap(run)
+}
+
+// resetHeap forgets the heap of the previous run (caller holds i.mu).
+func (i *Instance) resetHeap() {
+	i.heap, i.heapAt, i.heapMisses, i.javaPID = jvm.Heap{}, time.Time{}, 0, 0
+}
+
+// sampleHeap reads the Java heap every few seconds. Processes without a JVM
+// (or with an old Java) are asked less and less often, up to once a minute.
+func (i *Instance) sampleHeap(run *procRun) {
+	hp, ok := run.proc.(runtime.HostPIDer)
+	if !ok {
+		return
+	}
+	i.mu.RLock()
+	wait := 6 * time.Second << min(i.heapMisses, 4)
+	due := (i.state == StateRunning || i.state == StateStarting) && time.Since(i.heapAt) >= min(wait, time.Minute)
+	pid := i.javaPID
+	i.mu.RUnlock()
+	if !due {
+		return
+	}
+	if pid == 0 {
+		if root := hp.HostPID(); root > 0 {
+			pid = jvm.FindJava(root)
+		}
+	}
+	h, err := jvm.Heap{}, jvm.ErrNoListener
+	if pid > 0 {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		h, err = jvm.HeapInfo(ctx, pid)
+		cancel()
+	}
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	if i.run != run {
+		return // the server stopped in the meantime
+	}
+	i.heapAt = time.Now()
+	if err != nil {
+		i.heapMisses++
+		i.javaPID = 0
+		return
+	}
+	i.heap, i.heapMisses, i.javaPID = h, 0, pid
 }
 
 func (i *Instance) updateDisk() {

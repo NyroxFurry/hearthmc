@@ -289,6 +289,9 @@ func (a *API) publicInfo(w http.ResponseWriter, r *http.Request, pc *publicCtx) 
 			out["map"] = m
 		}
 	}
+	if mp := a.publicModpackInfo(pc); mp != nil {
+		out["modpack"] = mp
+	}
 	out["startedAt"] = pc.inst.Status().StartedAt
 	ok(w, out)
 	return nil

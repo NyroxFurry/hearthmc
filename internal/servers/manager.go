@@ -165,7 +165,7 @@ func (m *Manager) loop() {
 				m.bus.Publish(events.Event{Type: events.Stats, Server: inst.id, Data: status})
 				if n%30 == 0 { // every minute
 					m.store.AddMetric(context.Background(), inst.id, store.MetricPoint{
-						At: time.Now().Unix(), CPU: status.CPU, Mem: int64(status.Mem), Players: status.Players,
+						At: time.Now().Unix(), CPU: status.CPU, Mem: int64(status.Mem), Heap: int64(status.Heap), Players: status.Players,
 					})
 				}
 			}

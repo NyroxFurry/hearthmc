@@ -32,6 +32,7 @@ const (
 	DefaultMemoryMB    = "servers.defaultMemoryMb"
 	PublicPagesEnabled = "public.enabled"
 	UploadLimitMB      = "files.uploadLimitMb"
+	SFTPHost           = "sftp.host" // host[:port] shown for SFTP logins ("" = host of the panel)
 )
 
 var defaults = map[string]string{
@@ -55,12 +56,13 @@ var defaults = map[string]string{
 	DefaultMemoryMB:    "4096",
 	PublicPagesEnabled: "1",
 	UploadLimitMB:      "0",
+	SFTPHost:           "",
 }
 
 // Public lists the settings exposed in the admin UI.
 var Public = []string{PanelName, PanelURL, Contact, DefaultRuntime, DockerHost, PortStart, PortEnd, InternalPortStart,
 	InternalPortEnd, BackupsMax, MetricsRetention, AuditRetention, ChatRetention, Timezone, JavaMode, MapThreads,
-	MapPublicURL, DefaultMemoryMB, PublicPagesEnabled, UploadLimitMB}
+	MapPublicURL, DefaultMemoryMB, PublicPagesEnabled, UploadLimitMB, SFTPHost}
 
 type Service struct {
 	st    *store.Store

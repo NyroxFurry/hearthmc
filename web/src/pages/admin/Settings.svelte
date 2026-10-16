@@ -153,6 +153,11 @@
           <p class="hint">Karten-Plugins (BlueMap, squaremap, Dynmap) erscheinen über einen eigenen Port des Panels, standardmäßig Panel-Port + 1. Hinter einem Reverse-Proxy trägst du hier dessen Adresse ein, z. B. https://karte.example.de.</p>
         </div>
         <div class="field">
+          <label for="s-sf">SFTP-Adresse <span class="faint">(optional)</span></label>
+          <input id="s-sf" class="input mono" bind:value={values['sftp.host']} placeholder="automatisch" />
+          <p class="hint">Wird Benutzern als SFTP-Server angezeigt. Leer lassen für den Host des Panels und Port 2022. Nötig, wenn das Panel hinter einem Proxy liegt, der kein SSH weiterleitet, z. B. sftp.example.de:2022.</p>
+        </div>
+        <div class="field">
           <label for="s-rm">Messwerte aufbewahren (Tage)</label>
           <input id="s-rm" class="input num" type="number" min="1" bind:value={values['retention.metricsDays']} />
         </div>

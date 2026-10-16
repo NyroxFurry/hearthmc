@@ -39,6 +39,9 @@ type Config struct {
 	// map plugins (BlueMap, squaremap, Dynmap) on their own origin. Empty means
 	// automatic (panel port + 1, with HTTPS 8443), "off" disables it.
 	MapListen string `json:"mapListen,omitempty"`
+	// SFTPListen is the address of the built-in SFTP server for server files.
+	// Empty means the default ":2022", "off" disables it.
+	SFTPListen string `json:"sftpListen,omitempty"`
 }
 
 func Default() *Config {
@@ -60,6 +63,7 @@ func Load(args []string) (*Config, error) {
 	trustProxy := fs.Bool("trust-proxy", false, "trust X-Forwarded-* headers (env HEARTH_TRUST_PROXY=1)")
 	logLevel := fs.String("log-level", "", "log level: debug, info, warn, error (env HEARTH_LOG_LEVEL)")
 	mapListen := fs.String("map-listen", "", "address of the map port for map plugins, e.g. :8081 or off (env HEARTH_MAP_LISTEN)")
+	sftpListen := fs.String("sftp-listen", "", "address of the SFTP server, e.g. :2022 or off (env HEARTH_SFTP_LISTEN)")
 	if err := fs.Parse(args); err != nil {
 		return nil, err
 	}
@@ -102,6 +106,7 @@ func Load(args []string) (*Config, error) {
 	envStr("HEARTH_SERVERS_DIR", &cfg.ServersDir)
 	envStr("HEARTH_BACKUPS_DIR", &cfg.BackupsDir)
 	envStr("HEARTH_MAP_LISTEN", &cfg.MapListen)
+	envStr("HEARTH_SFTP_LISTEN", &cfg.SFTPListen)
 	if v := os.Getenv("HEARTH_TRUST_PROXY"); v == "1" || strings.EqualFold(v, "true") {
 		cfg.TrustProxy = true
 	}
@@ -129,6 +134,9 @@ func Load(args []string) (*Config, error) {
 	}
 	if *mapListen != "" {
 		cfg.MapListen = *mapListen
+	}
+	if *sftpListen != "" {
+		cfg.SFTPListen = *sftpListen
 	}
 
 	if cfg.ServersDir == "" {
@@ -168,12 +176,33 @@ func (c *Config) MapAddr() string {
 	return net.JoinHostPort(host, strconv.Itoa(p+1))
 }
 
+// DefaultSFTPPort is the port of the built-in SFTP server.
+const DefaultSFTPPort = 2022
+
+// SFTPAddr returns the listen address of the SFTP server ("" = disabled).
+func (c *Config) SFTPAddr() string {
+	switch v := strings.ToLower(strings.TrimSpace(c.SFTPListen)); v {
+	case "off", "false", "0", "no":
+		return ""
+	case "":
+		return ":" + strconv.Itoa(DefaultSFTPPort)
+	default:
+		if !strings.Contains(v, ":") {
+			return ":" + v // just a port
+		}
+		return c.SFTPListen
+	}
+}
+
 // Paths derived from the data dir.
 func (c *Config) DBPath() string      { return filepath.Join(c.DataDir, "hearth.db") }
 func (c *Config) MapsDir() string     { return filepath.Join(c.DataDir, "maps") }
 func (c *Config) JavaDir() string     { return filepath.Join(c.DataDir, "java") }
 func (c *Config) CacheDir() string    { return filepath.Join(c.DataDir, "cache") }
 func (c *Config) TLSCacheDir() string { return filepath.Join(c.DataDir, "tls") }
+func (c *Config) SFTPHostKeyPath() string {
+	return filepath.Join(c.DataDir, "sftp_host_ed25519_key")
+}
 
 // EnsureDirs creates all directories the panel needs.
 func (c *Config) EnsureDirs() error {

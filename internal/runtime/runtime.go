@@ -53,6 +53,12 @@ type Process interface {
 	Usage() (Usage, error)
 }
 
+// HostPIDer is implemented by processes that can name the PID of their main
+// process on this host (used to read the Java heap). 0 means unknown.
+type HostPIDer interface {
+	HostPID() int
+}
+
 type Runtime interface {
 	Name() string
 	// Check reports whether this runtime is usable on this host.

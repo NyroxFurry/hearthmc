@@ -286,4 +286,19 @@ CREATE TABLE mc_events (
 CREATE INDEX mc_events_server ON mc_events(server_id, type, at);
 CREATE INDEX mc_events_player ON mc_events(server_id, uuid, at);
 `,
+	// 1.2: Java heap in the metrics, SSH keys for SFTP
+	`
+ALTER TABLE metrics ADD COLUMN heap INTEGER NOT NULL DEFAULT 0;
+
+CREATE TABLE ssh_keys (
+	id           INTEGER PRIMARY KEY,
+	user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	name         TEXT NOT NULL,
+	fingerprint  TEXT NOT NULL,
+	public_key   TEXT NOT NULL,
+	created_at   INTEGER NOT NULL,
+	last_used_at INTEGER NOT NULL DEFAULT 0
+);
+CREATE UNIQUE INDEX ssh_keys_user_fp ON ssh_keys(user_id, fingerprint);
+`,
 }

@@ -24,7 +24,10 @@ type InstalledPlugin struct {
 	Authors     []string `json:"authors"`
 	Website     string   `json:"website"`
 	Loader      string   `json:"loader"` // bukkit, paper, fabric, quilt, forge, neoforge
-	SHA1        string   `json:"sha1,omitempty"`
+	// Env is where a Fabric/Quilt mod runs according to its metadata:
+	// "client", "server" or "" (both or unknown).
+	Env  string `json:"env,omitempty"`
+	SHA1 string `json:"sha1,omitempty"`
 	// filled from Modrinth when known
 	ProjectID string `json:"projectId,omitempty"`
 	Slug      string `json:"slug,omitempty"`
@@ -98,9 +101,13 @@ func readJarMeta(path string, p *InstalledPlugin) {
 			Description string            `json:"description"`
 			Authors     []json.RawMessage `json:"authors"`
 			Contact     map[string]string `json:"contact"`
+			Environment string            `json:"environment"`
 		}
 		if json.Unmarshal(b, &m) == nil {
 			p.Loader, p.ID, p.Name, p.Version, p.Description = "fabric", m.ID, m.Name, m.Version, m.Description
+			if m.Environment == "client" || m.Environment == "server" {
+				p.Env = m.Environment
+			}
 			for _, a := range m.Authors {
 				var s string
 				var o struct {
@@ -126,10 +133,19 @@ func readJarMeta(path string, p *InstalledPlugin) {
 					Description string `json:"description"`
 				} `json:"metadata"`
 			} `json:"quilt_loader"`
+			Minecraft struct {
+				Environment string `json:"environment"`
+			} `json:"minecraft"`
 		}
 		if json.Unmarshal(b, &m) == nil {
 			p.Loader, p.ID, p.Version = "quilt", m.QuiltLoader.ID, m.QuiltLoader.Version
 			p.Name, p.Description = m.QuiltLoader.Metadata.Name, m.QuiltLoader.Metadata.Description
+			switch m.Minecraft.Environment {
+			case "client":
+				p.Env = "client"
+			case "dedicated_server":
+				p.Env = "server"
+			}
 			return
 		}
 	}

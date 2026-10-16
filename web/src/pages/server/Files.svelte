@@ -2,8 +2,9 @@
   import { onMount, untrack } from 'svelte';
   import {
     Folder, File as FileIc, FileText, FileCode, FileArchive, FileImage, Package, Upload, FolderUp, FolderPlus, FilePlus, Download,
-    Pencil, Copy, Trash2, Move, Archive, ArchiveRestore, ChevronRight, House, ArrowLeft, Save, Search, RefreshCw, X, Link2, ArrowUp, ArrowDown,
+    Pencil, Copy, Trash2, Move, Archive, ArchiveRestore, ChevronRight, House, ArrowLeft, Save, Search, RefreshCw, X, Link2, ArrowUp, ArrowDown, KeySquare,
   } from '@lucide/svelte';
+  import SFTPAccess from '../../components/SFTPAccess.svelte';
   import Menu, { type MenuItem } from '../../components/Menu.svelte';
   import { api, upload, ApiError } from '../../lib/api';
   import { router, go } from '../../lib/router.svelte';
@@ -18,6 +19,8 @@
   const base = $derived(`/api/servers/${server.id}/files`);
   const canWrite = $derived(can(server, 'files.write'));
   const canDelete = $derived(can(server, 'files.delete'));
+  const canSFTP = $derived(can(server, 'files.sftp'));
+  let sftpOpen = $state(false);
 
   let path = $derived(router.route.query.get('path') ?? '');
   let editPath = $derived(router.route.query.get('edit'));
@@ -446,6 +449,7 @@
         <input class="input" placeholder="In diesem Ordner filtern" bind:value={filter} aria-label="Dateien filtern" />
       </div>
       <button class="btn icon" onclick={load} title="Neu laden" aria-label="Neu laden"><RefreshCw /></button>
+      {#if canSFTP}<button class="btn" onclick={() => (sftpOpen = true)} title="Zugangsdaten für FileZilla, WinSCP und Co."><KeySquare /> SFTP</button>{/if}
       {#if canWrite}
         <Menu
           text="Neu"
@@ -551,6 +555,8 @@
     </div>
   </div>
 {/if}
+
+{#if canSFTP}<SFTPAccess bind:open={sftpOpen} serverId={server.id} />{/if}
 
 <style>
   .files {

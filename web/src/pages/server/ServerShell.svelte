@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import {
     Play, Square, RotateCw, Skull, Gauge, TerminalSquare, FolderOpen, Archive, CalendarClock, Users, Puzzle, Map as MapIc,
-    Globe2, SlidersHorizontal, FileCog, KeyRound, Megaphone, Bell, ScrollText, Settings, TriangleAlert, RefreshCw, Lock,
+    Globe2, SlidersHorizontal, FileCog, KeyRound, Megaphone, Bell, ScrollText, Settings, TriangleAlert, RefreshCw, Lock, Package,
   } from '@lucide/svelte';
   import ServerIcon from '../../components/ServerIcon.svelte';
   import StatusBadge from '../../components/StatusBadge.svelte';
@@ -21,6 +21,7 @@
   import Schedules from './Schedules.svelte';
   import Players from './Players.svelte';
   import Plugins from './Plugins.svelte';
+  import Modpack from './Modpack.svelte';
   import MapPage from './MapPage.svelte';
   import World from './World.svelte';
   import Properties from './Properties.svelte';
@@ -81,6 +82,7 @@
         items: [
           { id: 'players', label: 'Spieler', icon: Users, perm: 'players.read', show: mc },
           { id: 'plugins', label: modKind || 'Plugins', icon: Puzzle, perm: 'plugins.manage', show: mc && !!modKind },
+          { id: 'modpack', label: 'Modpack', icon: Package, perm: 'plugins.manage', show: mc && modKind === 'Mods' },
           { id: 'map', label: 'Karte', icon: MapIc, show: mc },
           { id: 'world', label: 'Welt', icon: Globe2, perm: 'settings.read', show: mc },
         ],
@@ -214,6 +216,8 @@
           <Players {server} {status} {player} />
         {:else if section === 'plugins'}
           <Plugins {server} {status} />
+        {:else if section === 'modpack'}
+          <Modpack {server} />
         {:else if section === 'map'}
           <MapPage {server} {status} />
         {:else if section === 'world'}
@@ -332,6 +336,12 @@
   .banner {
     margin: 18px 34px 0;
     align-items: center;
+    flex-wrap: wrap;
+  }
+  .banner .stack {
+    flex: 1 1 260px;
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
   .body {
     display: grid;

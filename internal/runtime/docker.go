@@ -421,6 +421,35 @@ type dockerProc struct {
 	mu        sync.Mutex
 	lastTotal uint64
 	lastSys   uint64
+	pid       int
+}
+
+// HostPID returns the host PID of the container's init process. Only for a
+// local Docker engine: with a remote one the PID belongs to another machine.
+func (p *dockerProc) HostPID() int {
+	if p.d.network != "unix" {
+		return 0
+	}
+	p.mu.Lock()
+	pid := p.pid
+	p.mu.Unlock()
+	if pid > 0 {
+		return pid
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	var info struct {
+		State struct {
+			Pid int `json:"Pid"`
+		} `json:"State"`
+	}
+	if _, err := p.d.do(ctx, "GET", "/containers/"+p.id+"/json", nil, nil, &info); err != nil {
+		return 0
+	}
+	p.mu.Lock()
+	p.pid = info.State.Pid
+	p.mu.Unlock()
+	return info.State.Pid
 }
 
 func (p *dockerProc) ID() string        { return p.id[:min(12, len(p.id))] }

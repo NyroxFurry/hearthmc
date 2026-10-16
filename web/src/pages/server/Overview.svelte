@@ -9,7 +9,7 @@
   import { api, qs } from '../../lib/api';
   import { live } from '../../lib/live.svelte';
   import { can } from '../../lib/session.svelte';
-  import { bytes, duration, num1, mb, time } from '../../lib/format';
+  import { bytes, duration, num1, mb, time, memUsage } from '../../lib/format';
   import { flavorLabel } from '../../lib/mc';
   import { fillGaps } from '../../lib/series';
   import type { MCEvent, OnlinePlayer, Server, Status } from '../../lib/types';
@@ -35,7 +35,7 @@
   let range = $state<Range>('24h');
   // svelte-ignore state_referenced_locally
   let metric = $state<'players' | 'cpu' | 'mem'>(mc ? 'players' : 'cpu');
-  let points = $state<{ t: number; cpu: number; mem: number; players: number }[]>([]);
+  let points = $state<{ t: number; cpu: number; mem: number; heap?: number; players: number }[]>([]);
 
   let now = $state(Date.now() / 1000);
 
@@ -102,7 +102,8 @@
   });
 
   let memLimit = $derived(status.memLimit || server.memoryMb * 1048576);
-  let memPct = $derived(memLimit ? Math.min(100, (status.mem / memLimit) * 100) : 0);
+  let memory = $derived(memUsage(status, server.memoryMb));
+  let memPct = $derived(memory.total ? Math.min(100, (memory.used / memory.total) * 100) : 0);
   let diskLimit = $derived(server.diskLimitMb > 0 ? server.diskLimitMb * 1048576 : 0);
   let diskPct = $derived(diskLimit ? Math.min(100, (status.disk / diskLimit) * 100) : 0);
   let address = $derived(server.displayAddress || `${location.hostname}:${server.port}`);
@@ -119,7 +120,8 @@
   let chart = $derived.by(() => {
     if (metric === 'players') return { pts: points.map((p) => ({ t: p.t, v: Math.max(0, p.players) })), fmt: (v: number) => String(Math.round(v)), color: 'var(--accent)', step: true, max: 1 };
     if (metric === 'cpu') return { pts: points.map((p) => ({ t: p.t, v: p.cpu })), fmt: (v: number) => num1(v) + ' %', color: 'var(--info)', step: false, max: 5 };
-    return { pts: points.map((p) => ({ t: p.t, v: p.mem })), fmt: (v: number) => bytes(v, 1), color: 'var(--copper)', step: false, max: memLimit };
+    // Java-Heap, wo bekannt; ältere Messpunkte (vor 1.2) haben nur den Prozess
+    return { pts: points.map((p) => ({ t: p.t, v: p.heap || p.mem })), fmt: (v: number) => bytes(v, 1), color: 'var(--copper)', step: false, max: memLimit };
   });
 
   function tpsClass(v: number) {
@@ -146,9 +148,16 @@
         <div class="metric">
           <div class="mh">
             <MemoryStick /><span>Arbeitsspeicher</span><span class="spacer"></span>
-            <strong class="num">{active ? bytes(status.mem) : '–'}</strong><span class="faint small num">&nbsp;/ {bytes(memLimit, 0)}</span>
+            <strong class="num">{active ? bytes(memory.used) : '–'}</strong><span class="faint small num">&nbsp;/ {bytes(memory.total, 0)}</span>
           </div>
           <div class="meter" class:warn={memPct > 85} class:danger={memPct > 95}><span style="width:{active ? memPct : 0}%"></span></div>
+          {#if active && memory.heap}
+            <p class="tiny faint memnote" title="Java reserviert den kompletten Heap schon beim Start. Angezeigt wird, wie viel davon der Server gerade wirklich nutzt.">
+              Java-Heap in Benutzung, reserviert sind {bytes(status.mem)}
+            </p>
+          {:else if active && mc && memPct > 85}
+            <p class="tiny faint memnote">Java reserviert den Speicher schon beim Start, daher steht die Anzeige nahe am Limit. Den genutzten Heap kann das Panel ab Java 9 auslesen.</p>
+          {/if}
         </div>
         <div class="metric">
           <div class="mh">
@@ -318,6 +327,9 @@
     flex-direction: column;
     gap: 8px;
     padding: 11px 16px;
+  }
+  .memnote {
+    margin: 6px 0 0;
   }
   .metric + .metric {
     border-top: 1px solid var(--line);

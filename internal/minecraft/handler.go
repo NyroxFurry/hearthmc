@@ -426,7 +426,9 @@ func (h *Handler) Prepare(ctx context.Context, runtimeName string) (*game.Launch
 			minMem = max(256, mem/4)
 		}
 	}
-	argv := []string{java, fmt.Sprintf("-Xms%dM", minMem), fmt.Sprintf("-Xmx%dM", mem)}
+	// StartAttachListener opens the JVM's diagnostic socket at start, so the
+	// panel can read the real heap usage (like jcmd) without signalling.
+	argv := []string{java, fmt.Sprintf("-Xms%dM", minMem), fmt.Sprintf("-Xmx%dM", mem), "-XX:+StartAttachListener"}
 	if s.FlagsPreset == "aikar" {
 		argv = append(argv, aikarFlags(mem)...)
 	}

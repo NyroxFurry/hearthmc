@@ -18,6 +18,13 @@ import (
 // modrinthAPI is a variable so tests can point it at a local server.
 var modrinthAPI = "https://api.modrinth.com/v2"
 
+func init() {
+	// a mirror or a local test server can stand in for Modrinth
+	if v := strings.TrimRight(os.Getenv("HEARTH_MODRINTH_API"), "/"); v != "" {
+		modrinthAPI = v
+	}
+}
+
 type Modrinth struct {
 	HTTP *httpx.Client
 }
@@ -86,6 +93,8 @@ type MRProject struct {
 	Description string `json:"description"`
 	IconURL     string `json:"icon_url"`
 	ProjectType string `json:"project_type"`
+	ClientSide  string `json:"client_side"` // required, optional, unsupported, unknown
+	ServerSide  string `json:"server_side"`
 }
 
 func jsonParam(v any) string {
@@ -204,6 +213,43 @@ func (m *Modrinth) LatestByHash(ctx context.Context, hashes, loaders []string, m
 	return out, err
 }
 
+// Resolve picks the version of a project to install: versionID when given,
+// else the newest release for the loaders and Minecraft version. Plugins and
+// mods often lag behind new patch releases, so without an exact match the
+// newest release for the same version line (1.21.x) is taken; note then
+// explains the choice.
+func (m *Modrinth) Resolve(ctx context.Context, project, versionID string, loaders []string, mcVersion string) (*MRVersion, string, error) {
+	if versionID != "" {
+		v, err := m.Version(ctx, versionID)
+		return v, "", err
+	}
+	list, err := m.ProjectVersions(ctx, project, loaders, mcVersion)
+	if err != nil {
+		return nil, "", err
+	}
+	note := ""
+	if len(list) == 0 && mcVersion != "" {
+		if all, e := m.ProjectVersions(ctx, project, loaders, ""); e == nil {
+			for i := range all {
+				if all[i].VersionType != "release" {
+					continue
+				}
+				for _, gv := range all[i].GameVersions {
+					if sameVersionLine(gv, mcVersion) {
+						list = append(list, all[i])
+						break
+					}
+				}
+			}
+			if len(list) > 0 {
+				note = fmt.Sprintf("Keine Version ausdrücklich für Minecraft %s gefunden, nehme %s (für %s).", mcVersion, list[0].VersionNumber, strings.Join(list[0].GameVersions, ", "))
+			}
+		}
+	}
+	v, err := BestVersion(list)
+	return v, note, err
+}
+
 // BestVersion picks the newest release (or newest of any type) from a list.
 func BestVersion(list []MRVersion) (*MRVersion, error) {
 	if len(list) == 0 {
@@ -296,39 +342,12 @@ func (g *Game) InstallProject(ctx context.Context, req InstallRequest) ([]string
 		if depth > 5 {
 			return nil
 		}
-		var v *MRVersion
-		var err error
-		if versionID != "" {
-			v, err = g.Modrinth.Version(ctx, versionID)
-		} else {
-			var list []MRVersion
-			list, err = g.Modrinth.ProjectVersions(ctx, project, req.Loaders, req.GameVersion)
-			if err == nil && len(list) == 0 && req.GameVersion != "" {
-				// nothing for this exact version (plugins often lag behind new
-				// patch releases): take the newest one for the same version line
-				if all, e := g.Modrinth.ProjectVersions(ctx, project, req.Loaders, ""); e == nil {
-					for i := range all {
-						if all[i].VersionType != "release" {
-							continue
-						}
-						for _, gv := range all[i].GameVersions {
-							if sameVersionLine(gv, req.GameVersion) {
-								list = append(list, all[i])
-								break
-							}
-						}
-					}
-					if len(list) > 0 {
-						logf("Keine Version ausdrücklich für Minecraft %s gefunden, nehme %s (für %s).", req.GameVersion, list[0].VersionNumber, strings.Join(list[0].GameVersions, ", "))
-					}
-				}
-			}
-			if err == nil {
-				v, err = BestVersion(list)
-			}
-		}
+		v, note, err := g.Modrinth.Resolve(ctx, project, versionID, req.Loaders, req.GameVersion)
 		if err != nil {
 			return fmt.Errorf("%s: %w", project, err)
+		}
+		if note != "" {
+			logf("%s", note)
 		}
 		if depth > 0 && haveProject[v.ProjectID] {
 			return nil

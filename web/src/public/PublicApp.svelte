@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Copy, Check, ExternalLink, ArrowLeft, Menu, X } from '@lucide/svelte';
+  import { Copy, Check, ExternalLink, ArrowLeft, Menu, X, Package } from '@lucide/svelte';
   import Flame from '../components/Flame.svelte';
   import PlayerHead from '../components/PlayerHead.svelte';
   import PlayerProfile from '../components/PlayerProfile.svelte';
@@ -10,7 +10,7 @@
   import { api, qs } from '../lib/api';
   import { mcToHtml, stripCodes } from '../lib/mctext';
   import { markdown } from '../lib/markdown';
-  import { ago, duration, hours, num, distance, time } from '../lib/format';
+  import { ago, bytes, duration, hours, num, distance, time } from '../lib/format';
   import { flavorLabel } from '../lib/mc';
   import { fillGaps } from '../lib/series';
   import { flavorFor, flavorVars } from '../lib/flavors';
@@ -35,6 +35,7 @@
     online?: OnlinePlayer[];
     totals?: { players: number; playSeconds: number; deaths: number; mobKills: number; blocksMined: number; distanceCm: number; advancements: number };
     map?: { enabled: boolean; externalUrl: string; pluginUrl?: string; pluginName?: string };
+    modpack?: { name: string; version: string; size: number; createdAt: number; url: string };
     startedAt: number;
   }
 
@@ -321,9 +322,18 @@
               <span class="cta">{#if copied}<Check size={16} /> Kopiert{:else}<Copy size={16} /> Kopieren{/if}</span>
             </button>
           {/if}
+          {#if info.modpack}
+            <a class="pack" href={info.modpack.url} download title="Modrinth-Pack mit allen Mods des Servers">
+              <Package size={17} />
+              <span>Modpack laden</span>
+              <span class="psize num">{bytes(info.modpack.size)}</span>
+            </a>
+          {/if}
         </div>
         <p class="hint" aria-live="polite">
-          {#if copied}
+          {#if copied && info.modpack}
+            Der Server braucht Mods: Modpack laden, in der Modrinth App importieren und dort unter Mehrspieler verbinden.
+          {:else if copied}
             In Minecraft unter Mehrspieler auf „Server hinzufügen“ gehen und die Adresse einfügen.
           {:else if online && info.startedAt}
             Läuft seit {duration(now - info.startedAt, true)}{#if version}{' '}mit {version}{/if}.
@@ -723,6 +733,28 @@
   }
   .join:hover {
     background: var(--band-hover);
+  }
+  .pack {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 52px;
+    padding: 0 22px;
+    border-radius: 999px;
+    border: 1.5px solid var(--band-line);
+    color: #fff;
+    font-weight: 700;
+    font-size: 15px;
+    text-decoration: none;
+    transition: background-color 0.2s;
+  }
+  .pack:hover {
+    background: var(--band-hover);
+  }
+  .psize {
+    font-weight: 500;
+    font-size: 13px;
+    color: var(--band-soft);
   }
   .atext {
     font-family: var(--font-mono);

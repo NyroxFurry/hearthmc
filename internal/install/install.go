@@ -169,7 +169,7 @@ WantedBy=multi-user.target
 	}
 	fmt.Println()
 	fmt.Println("  Logs:       sudo journalctl -u hearth -f")
-	fmt.Println("  Firewall:   Panel, Kartenport (für Karten-Plugins) und Spielports freigeben, z. B.")
+	fmt.Println("  Firewall:   Panel, Kartenport (für Karten-Plugins), SFTP und Spielports freigeben, z. B.")
 	fmt.Println("              " + firewallHint(o))
 	fmt.Println()
 	return nil
@@ -187,6 +187,11 @@ func firewallHint(o Options) string {
 	if m := cfg.MapAddr(); m != "" {
 		if i := strings.LastIndex(m, ":"); i >= 0 {
 			ports = append(ports, m[i+1:])
+		}
+	}
+	if sf := cfg.SFTPAddr(); sf != "" {
+		if i := strings.LastIndex(sf, ":"); i >= 0 {
+			ports = append(ports, sf[i+1:])
 		}
 	}
 	var parts []string

@@ -396,12 +396,13 @@ type MetricPoint struct {
 	At      int64   `json:"t"`
 	CPU     float64 `json:"cpu"`
 	Mem     int64   `json:"mem"`
+	Heap    int64   `json:"heap"` // Java heap in use, 0 = unknown
 	Players int     `json:"players"`
 }
 
 func (s *Store) AddMetric(ctx context.Context, serverID string, p MetricPoint) {
-	s.DB.ExecContext(ctx, `INSERT OR REPLACE INTO metrics (server_id, at, cpu, mem, players) VALUES (?, ?, ?, ?, ?)`,
-		serverID, p.At, p.CPU, p.Mem, p.Players)
+	s.DB.ExecContext(ctx, `INSERT OR REPLACE INTO metrics (server_id, at, cpu, mem, heap, players) VALUES (?, ?, ?, ?, ?, ?)`,
+		serverID, p.At, p.CPU, p.Mem, p.Heap, p.Players)
 }
 
 // Metrics returns points in [from, now], downsampled into buckets of bucketSec seconds.
@@ -409,7 +410,7 @@ func (s *Store) Metrics(ctx context.Context, serverID string, from int64, bucket
 	if bucketSec < 1 {
 		bucketSec = 1
 	}
-	rows, err := s.DB.QueryContext(ctx, `SELECT (at / ?) * ? AS b, AVG(cpu), AVG(mem), MAX(players)
+	rows, err := s.DB.QueryContext(ctx, `SELECT (at / ?) * ? AS b, AVG(cpu), AVG(mem), AVG(heap), MAX(players)
 		FROM metrics WHERE server_id = ? AND at >= ? GROUP BY b ORDER BY b`, bucketSec, bucketSec, serverID, from)
 	if err != nil {
 		return nil, err
@@ -418,11 +419,11 @@ func (s *Store) Metrics(ctx context.Context, serverID string, from int64, bucket
 	out := []MetricPoint{}
 	for rows.Next() {
 		var p MetricPoint
-		var mem float64
-		if err := rows.Scan(&p.At, &p.CPU, &mem, &p.Players); err != nil {
+		var mem, heap float64
+		if err := rows.Scan(&p.At, &p.CPU, &mem, &heap, &p.Players); err != nil {
 			return nil, err
 		}
-		p.Mem = int64(mem)
+		p.Mem, p.Heap = int64(mem), int64(heap)
 		out = append(out, p)
 	}
 	return out, rows.Err()

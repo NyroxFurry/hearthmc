@@ -102,3 +102,14 @@ export function prettyId(id: string): string {
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(' ');
 }
+
+/**
+ * Speicheranzeige eines Servers. Java reserviert den kompletten Heap schon beim
+ * Start, die Prozessgröße steht daher fast immer am Limit. Wenn das Panel den
+ * Heap auslesen kann, zeigt es den genutzten Heap, sonst den Prozess.
+ */
+export function memUsage(st: { mem: number; memLimit: number; heap?: number; heapSize?: number }, memoryMb: number): { used: number; total: number; heap: boolean } {
+  const configured = memoryMb > 0 ? memoryMb * 1048576 : 0;
+  if (st.heap && st.heapSize) return { used: st.heap, total: Math.max(configured, st.heapSize), heap: true };
+  return { used: st.mem, total: st.memLimit || configured, heap: false };
+}
